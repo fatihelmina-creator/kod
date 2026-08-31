@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulut Tabanlı QR Evrak ve Erişim Sistemi v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="authTitle" class="text-2xl font-bold text-slate-800">Giriş Yap</h2>
+                <button onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
+                    <input type="email" id="loginEmail" placeholder="ornek@email.com" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Şifre</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">Giriş Yap</button>
+                <p class="text-center text-sm text-slate-600">Hesabınız yok mu? <button onclick="toggleAuthForm()" class="text-indigo-600 hover:underline font-semibold">Kayıt Ol</button></p>
+            </div>
+
+            <div id="registerForm" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Ad Soyad</label>
+                    <input type="text" id="registerName" placeholder="Adınız Soyadınız" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
+                    <input type="email" id="registerEmail" placeholder="ornek@email.com" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Şifre</label>
+                    <input type="password" id="registerPassword" placeholder="••••••••" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button onclick="handleRegister()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">Kayıt Ol</button>
+                <p class="text-center text-sm text-slate-600">Zaten hesabınız var mı? <button onclick="toggleAuthForm()" class="text-indigo-600 hover:underline font-semibold">Giriş Yap</button></p>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Bulut QR Evrak Sistemi v2.0
+            </h1>
+            <div class="flex items-center gap-4">
+                <span id="userDisplay" class="text-sm hidden">
+                    <i class="fa-solid fa-user-circle"></i> <span id="userEmail"></span>
+                </span>
+                <button id="authBtn" onclick="openAuthModal()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full font-medium transition">
+                    Giriş Yap
+                </button>
+                <button id="logoutBtn" onclick="logout()" class="text-xs bg-red-500/30 hover:bg-red-500/40 px-3 py-1.5 rounded-full font-medium transition hidden">
+                    Çıkış Yap
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="appMainContainer" class="flex-grow max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Upload Section -->
+        <section class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-5">
+            <h2 class="text-lg font-semibold text-slate-700 border-b pb-2 flex items-center gap-2">
+                <i class="fa-solid fa-file-circle-plus text-indigo-600"></i> Dosya Yükle
+            </h2>
+
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Dosya Başlığı</label>
+                    <input type="text" id="fileTitle" placeholder="örn: 2026 Mali Raporu" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Açıklama</label>
+                    <textarea id="fileDescription" placeholder="Dosya hakkında kısa açıklama" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm h-20"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Dosya Seç (PDF/Görsel - Max 50MB)</label>
+                    <input type="file" id="fileUpload" accept="image/*,application/pdf" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                    <div id="fileProgress" class="hidden mt-2">
+                        <div class="w-full bg-slate-200 rounded-full h-2">
+                            <div id="progressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1"><span id="progressPercent">0</span>%</p>
+                    </div>
+                </div>
+
+                <!-- Access Control -->
+                <div class="border-t pt-3">
+                    <label class="block text-sm font-medium text-slate-600 mb-2">Erişim Seçeneği</label>
+                    <select id="accessLevel" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="link-only">Bağlantı ile (QR Kodu gerekli)</option>
+                        <option value="private">Özel (Sadece sahibi)</option>
+                        <option value="public">Herkese Açık</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Şifre (İsteğe bağlı)</label>
+                    <input type="password" id="accessPassword" placeholder="Dosyayı korumak için şifre girin" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">İndirme Limiti</label>
+                    <input type="number" id="maxDownloads" value="10" min="1" max="100" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Dosya Süresi (Gün)</label>
+                    <input type="number" id="expirationDays" value="30" min="1" max="365" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+
+                <button onclick="uploadToCloud()" id="uploadBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Şifreli Yükle & QR Üret
+                </button>
+            </div>
+
+            <div class="mt-auto border-t pt-4 flex flex-col items-center">
+                <span class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Son QR Kod</span>
+                <div id="qrcode" class="p-3 bg-white border rounded-lg shadow-inner flex items-center justify-center min-h-[160px] min-w-[160px]">
+                    <span class="text-xs text-slate-300">QR burada görünecek</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Archive Section -->
+        <section class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+            <div class="flex justify-between items-center border-b pb-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-database text-indigo-600"></i> Dosya Arşivi
+                    </h2>
+                    <p class="text-xs text-slate-400">Bulutta saklanan dosyaların listesi.</p>
+                </div>
+                <button onclick="clearAllDocuments()" class="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-trash"></i> Tümünü Sil
+                </button>
+            </div>
+
+            <div class="flex-grow overflow-y-auto mt-4 max-h-[600px]" id="documentsContainer">
+                <div class="flex flex-col items-center justify-center h-48 text-slate-400">
+                    <i class="fa-solid fa-box-open text-3xl mb-2"></i>
+                    <p class="text-sm">Dosya bulunmuyor. Lütfen giriş yapın.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Document Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 relative flex flex-col my-8">
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <h3 id="modalTitle" class="text-xl font-bold text-slate-700 mb-4">Dosya Detayları</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-1">Başlık</p>
+                    <p id="modalDocTitle" class="font-semibold text-slate-700"></p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-1">İndirme Durumu</p>
+                    <p id="modalDownloadStatus" class="font-semibold text-slate-700"></p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-1">Erişim Seviyesi</p>
+                    <p id="modalAccessLevel" class="font-semibold text-slate-700"></p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-1">Süresi Bitmesi</p>
+                    <p id="modalExpiration" class="font-semibold text-slate-700"></p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-lg mb-6">
+                <p class="text-xs text-slate-500 mb-2">QR Kod</p>
+                <div id="modalQRContainer" class="flex justify-center p-3 bg-white border rounded-lg"></div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-lg mb-6">
+                <label class="block text-xs font-semibold text-slate-500 mb-2">Bulut Erişim Linki:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="modalShareUrl" readonly class="flex-1 px-3 py-2 bg-white border rounded-lg text-xs text-slate-600 focus:outline-none">
+                    <button onclick="copyToClipboard()" class="px-3 py-2 bg-indigo-100 text-indigo-600 hover:bg-indigo-200 rounded-lg text-sm font-medium transition cursor-pointer">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-2 w-full">
+                <a id="modalDownloadLink" href="#" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-center py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> İndir
+                </a>
+                <button id="modalDeleteBtn" onclick="deleteCurrentDocument()" class="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-trash"></i> Sil
+                </button>
+                <button onclick="closeDetailModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium transition cursor-pointer">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Public Viewer -->
+    <div id="publicViewer" class="hidden min-h-screen flex flex-col bg-slate-100">
+        <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+            <h1 id="publicTitle" class="font-bold text-slate-700 flex items-center gap-2 text-base md:text-lg">
+                <i class="fa-solid fa-file-shield text-indigo-600"></i>
+            </h1>
+            <button id="publicDownloadBtn" onclick="downloadPublicFile()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-sm">
+                <i class="fa-solid fa-download"></i> İndir
+            </button>
+        </header>
+        <main class="flex-grow flex flex-col items-center justify-center p-4 max-w-4xl mx-auto w-full">
+            <div class="w-full mb-2 flex justify-between items-center px-2">
+                <span class="text-xs text-slate-500 font-medium"><i class="fa-solid fa-circle-check text-emerald-500"></i> Bulut Onaylı Orijinal Dosya</span>
+                <span id="publicDate" class="text-xs text-slate-400"></span>
+            </div>
+            <div id="publicPreview" class="w-full bg-white rounded-lg shadow-lg border p-4"></div>
+        </main>
+    </div>
+
+    <footer class="text-center py-4 text-xs text-slate-400 border-t mt-auto">
+        Bulut QR Evrak Sistemi v2.0 © 2026 | AES-256 Şifrelemeli | Güvenli Bulut Depolama
+    </footer>
+
+    <script>
+        const API_BASE = '/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+        let currentDocument = null;
+
+        // Initialize
+        window.onload = async function() {
+            checkAuth();
+            const urlParams = new URLSearchParams(window.location.search);
+            let docId = urlParams.get('docId');
+            
+            if (!docId && window.location.hash.startsWith('#doc=')) {
+                docId = window.location.hash.replace('#doc=', '');
+            }
+
+            if (docId) {
+                await renderPublicViewer(docId);
+            } else if (authToken) {
+                await loadUserDocuments();
+            }
+        };
+
+        // ===== AUTH FUNCTIONS =====
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            
+            if (token && user) {
+                authToken = token;
+                currentUser = user;
+                updateAuthUI();
+            }
+        }
+
+        function updateAuthUI() {
+            const authBtn = document.getElementById('authBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const userDisplay = document.getElementById('userDisplay');
+
+            if (currentUser) {
+                authBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                userDisplay.classList.remove('hidden');
+                document.getElementById('userEmail').textContent = currentUser.email;
+            } else {
+                authBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+                userDisplay.classList.add('hidden');
+            }
+        }
+
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('authModal').classList.add('flex');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('flex');
+        }
+
+        function toggleAuthForm() {
+            document.getElementById('loginForm').classList.toggle('hidden');
+            document.getElementById('registerForm').classList.toggle('hidden');
+            const title = document.getElementById('authTitle');
+            title.textContent = title.textContent === 'Giriş Yap' ? 'Kayıt Ol' : 'Giriş Yap';
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showNotification('Email ve şifre gerekli', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showNotification(data.error || 'Giriş başarısız', 'error');
+                    return;
+                }
+
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+                authToken = data.token;
+                currentUser = data.user;
+                
+                updateAuthUI();
+                closeAuthModal();
+                loadUserDocuments();
+                showNotification('Giriş başarılı!', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        async function handleRegister() {
+            const fullName = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+
+            if (!fullName || !email || !password) {
+                showNotification('Tüm alanlar gerekli', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullName, email, password })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showNotification(data.error || 'Kayıt başarısız', 'error');
+                    return;
+                }
+
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+                authToken = data.token;
+                currentUser = data.user;
+                
+                updateAuthUI();
+                closeAuthModal();
+                loadUserDocuments();
+                showNotification('Kayıt başarılı!', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            authToken = null;
+            currentUser = null;
+            updateAuthUI();
+            location.reload();
+        }
+
+        // ===== DOCUMENT FUNCTIONS =====
+        async function uploadToCloud() {
+            if (!authToken) {
+                showNotification('Lütfen önce giriş yapın', 'error');
+                openAuthModal();
+                return;
+            }
+
+            const title = document.getElementById('fileTitle').value.trim() || 'İsimsiz Dosya';
+            const description = document.getElementById('fileDescription').value.trim();
+            const fileInput = document.getElementById('fileUpload');
+            const accessLevel = document.getElementById('accessLevel').value;
+            const accessPassword = document.getElementById('accessPassword').value;
+            const maxDownloads = parseInt(document.getElementById('maxDownloads').value);
+            const expirationDays = parseInt(document.getElementById('expirationDays').value);
+
+            if (fileInput.files.length === 0) {
+                showNotification('Lütfen bir dosya seçin', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            try {
+                document.getElementById('fileProgress').classList.remove('hidden');
+                document.getElementById('uploadBtn').disabled = true;
+
+                const reader = new FileReader();
+                reader.onprogress = (e) => {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    document.getElementById('progressPercent').textContent = percent;
+                    document.getElementById('progressBar').style.width = percent + '%';
+                };
+
+                reader.onload = async (e) => {
+                    const fileData = e.target.result;
+
+                    const uploadData = {
+                        title,
+                        description,
+                        fileData,
+                        fileName: file.name,
+                        fileType: file.type,
+                        accessLevel,
+                        accessPassword: accessPassword || undefined,
+                        maxDownloads,
+                        expirationDays
+                    };
+
+                    const response = await fetch(`${API_BASE}/documents/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify(uploadData)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        showNotification(data.error || 'Yükleme başarısız', 'error');
+                        document.getElementById('uploadBtn').disabled = false;
+                        document.getElementById('fileProgress').classList.add('hidden');
+                        return;
+                    }
+
+                    // Generate QR
+                    const qrContainer = document.getElementById('qrcode');
+                    qrContainer.innerHTML = '';
+                    new QRCode(qrContainer, {
+                        text: data.document.qrUrl,
+                        width: 150,
+                        height: 150
+                    });
+
+                    // Reset form
+                    document.getElementById('fileTitle').value = '';
+                    document.getElementById('fileDescription').value = '';
+                    document.getElementById('fileUpload').value = '';
+                    document.getElementById('accessPassword').value = '';
+                    document.getElementById('fileProgress').classList.add('hidden');
+                    document.getElementById('uploadBtn').disabled = false;
+                    document.getElementById('progressPercent').textContent = '0';
+                    document.getElementById('progressBar').style.width = '0%';
+
+                    loadUserDocuments();
+                    showNotification('Dosya başarıyla şifreli yüklendi!', 'success');
+                };
+
+                reader.readAsDataURL(file);
+            } catch (error) {
+                showNotification(error.message, 'error');
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        async function loadUserDocuments() {
+            if (!authToken) {
+                document.getElementById('documentsContainer').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-48 text-slate-400">
+                        <i class="fa-solid fa-lock text-3xl mb-2"></i>
+                        <p class="text-sm">Dosyaları görmek için lütfen giriş yapın.</p>
+                        <button onclick="openAuthModal()" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Giriş Yap</button>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/documents/my-documents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showNotification(data.error || 'Dosyalar yüklenemedi', 'error');
+                    return;
+                }
+
+                renderDocumentsList(data.documents);
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        function renderDocumentsList(documents) {
+            const container = document.getElementById('documentsContainer');
+
+            if (documents.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-48 text-slate-400">
+                        <i class="fa-solid fa-inbox text-3xl mb-2"></i>
+                        <p class="text-sm">Henüz dosya yüklenmemiş.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            documents.forEach(doc => {
+                const expiresAt = new Date(doc.expiresAt);
+                const isExpired = expiresAt < new Date();
+                const daysLeft = Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60 * 24));
+                
+                html += `
+                    <div class="border rounded-lg p-4 flex flex-col justify-between bg-slate-50 hover:bg-white transition border-slate-200 shadow-sm">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-semibold text-slate-700 text-sm truncate max-w-[180px]">${escapeHtml(doc.title)}</h3>
+                                <span class="text-[10px] ${isExpired ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded-full uppercase font-bold">
+                                    ${isExpired ? 'Süresi Doldu' : 'Aktif'}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-1"><i class="fa-solid fa-file"></i> ${escapeHtml(doc.fileName)}</p>
+                            <p class="text-xs text-slate-400 mb-2"><i class="fa-solid fa-download"></i> ${doc.currentDownloads}/${doc.maxDownloads} indirildi</p>
+                            <p class="text-[11px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${daysLeft > 0 ? daysLeft + ' gün kaldı' : 'Süresi dolmuş'}</p>
+                        </div>
+                        <div class="flex items-center justify-between border-t pt-3 mt-auto">
+                            <button onclick="openDetailModal('${doc.docId}')" class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-qrcode text-indigo-600"></i> Detay
+                            </button>
+                            <button onclick="deleteDocument('${doc.docId}')" class="text-xs text-red-500 hover:text-red-700 p-1.5 transition cursor-pointer">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function openDetailModal(docId) {
+            try {
+                const response = await fetch(`${API_BASE}/documents/${docId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const doc = await response.json();
+
+                if (!response.ok) {
+                    showNotification(doc.error || 'Dosya yüklenemedi', 'error');
+                    return;
+                }
+
+                currentDocument = docId;
+                document.getElementById('modalTitle').textContent = 'Dosya Detayları';
+                document.getElementById('modalDocTitle').textContent = escapeHtml(doc.title);
+                document.getElementById('modalDownloadStatus').textContent = `${doc.currentDownloads}/${doc.maxDownloads}`;
+                document.getElementById('modalAccessLevel').textContent = doc.accessLevel === 'link-only' ? 'Bağlantı İle' : doc.accessLevel === 'private' ? 'Özel' : 'Herkese Açık';
+                
+                const expiresAt = new Date(doc.expiresAt);
+                const daysLeft = Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60 * 24));
+                document.getElementById('modalExpiration').textContent = daysLeft > 0 ? `${daysLeft} gün` : 'Süresi dolmuş';
+
+                const shareUrl = `${window.location.origin}?docId=${docId}`;
+                document.getElementById('modalShareUrl').value = shareUrl;
+                document.getElementById('modalDownloadLink').href = `/api/documents/${docId}/download`;
+
+                const qrContainer = document.getElementById('modalQRContainer');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, {
+                    text: shareUrl,
+                    width: 180,
+                    height: 180
+                });
+
+                document.getElementById('detailModal').classList.remove('hidden');
+                document.getElementById('detailModal').classList.add('flex');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+            document.getElementById('detailModal').classList.remove('flex');
+            currentDocument = null;
+        }
+
+        function copyToClipboard() {
+            const url = document.getElementById('modalShareUrl');
+            url.select();
+            document.execCommand('copy');
+            showNotification('Bağlantı kopyalandı!', 'success');
+        }
+
+        async function deleteCurrentDocument() {
+            if (!confirm('Dosyayı silmek istediğinizden emin misiniz?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/documents/${currentDocument}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    showNotification(data.error || 'Silme başarısız', 'error');
+                    return;
+                }
+
+                closeDetailModal();
+                loadUserDocuments();
+                showNotification('Dosya silindi', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        async function deleteDocument(docId) {
+            if (!confirm('Dosyayı silmek istediğinizden emin misiniz?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/documents/${docId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    showNotification(data.error || 'Silme başarısız', 'error');
+                    return;
+                }
+
+                loadUserDocuments();
+                showNotification('Dosya silindi', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        async function clearAllDocuments() {
+            if (!confirm('TÜM dosyaları silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/documents/my-documents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+
+                for (const doc of data.documents) {
+                    await fetch(`${API_BASE}/documents/${doc.docId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                }
+
+                loadUserDocuments();
+                showNotification('Tüm dosyalar silindi', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        // ===== PUBLIC VIEWER =====
+        async function renderPublicViewer(docId) {
+            try {
+                const response = await fetch(`${API_BASE}/documents/${docId}`);
+                const doc = await response.json();
+
+                if (!response.ok) {
+                    showDocumentNotFound();
+                    return;
+                }
+
+                document.getElementById('appMainContainer').classList.add('hidden');
+                document.getElementById('publicViewer').classList.remove('hidden');
+                document.getElementById('publicTitle').textContent = escapeHtml(doc.title);
+                document.getElementById('publicDate').textContent = new Date(doc.createdAt).toLocaleString('tr-TR');
+
+                currentDocument = docId;
+
+                // Store for download
+                window.publicDocDownloadUrl = `/api/documents/${docId}/download`;
+            } catch (error) {
+                showDocumentNotFound();
+            }
+        }
+
+        function showDocumentNotFound() {
+            document.getElementById('appMainContainer').classList.add('hidden');
+            document.getElementById('publicViewer').classList.remove('hidden');
+            document.getElementById('publicViewer').innerHTML = `
+                <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 text-center">
+                    <i class="fa-solid fa-triangle-exclamation text-4xl text-amber-500 mb-3"></i>
+                    <h2 class="text-xl font-bold text-slate-700">Dosya Bulunamadı veya Süresi Dolmuş</h2>
+                    <p class="text-sm text-slate-500 mt-1 mb-4">Bu karekoda ait dosya mevcut değil ya da süresi dolmuştur.</p>
+                    <a href="/" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Ana Sayfaya Dön</a>
+                </div>
+            `;
+        }
+
+        function downloadPublicFile() {
+            if (window.publicDocDownloadUrl) {
+                window.location.href = window.publicDocDownloadUrl;
+                showNotification('İndirme başlıyor...', 'success');
+            }
+        }
+
+        // ===== UTILS =====
+        function showNotification(message, type) {
+            const notif = document.createElement('div');
+            notif.className = `fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg transition-all duration-300 transform translate-y-2 opacity-0 text-white ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-emerald-600' : 'bg-slate-800'}`;
+            notif.innerText = message;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => notif.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                notif.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => notif.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
